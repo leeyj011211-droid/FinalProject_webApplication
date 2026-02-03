@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "mybatis-3-mapper.dtd">
+
+<mapper namespace="com.project1.backend_spring.mapper.IncidentMapper">
+
+    <insert id="insertIncident" parameterType="IncidentLogDTO" useGeneratedKeys="true" keyProperty="incidentLog">
+        INSERT INTO incident_log (serial_no, video_url, location_gps)
+        VALUES (#{serialNo}, #{videoUrl}, #{locationGps})
+    </insert>
+
+    <select id="findAllIncidents" resultType="IncidentLogDTO">
+        SELECT * FROM incident_log
+    </select>
+
+    <insert id="insertReport" parameterType="ReportDTO">
+        INSERT INTO report (history_id, incident_log, serial_no, is_submitted)
+        VALUES (#{historyId}, #{incidentLog}, #{serialNo},  #{isSubmitted})
+    </insert>
+
+    <select id="findAllReports" resultType="ReportDTO">
+        SELECT * FROM report
+    </select>
+
+    <select id="findReportsByUserId" resultType="ReportDTO">
+        SELECT * FROM report WHERE history_id = #{historyId}
+    </select>
+
+</mapper>

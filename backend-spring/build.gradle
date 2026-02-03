@@ -1,0 +1,57 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.4.1'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.project1'
+version = '0.0.1-SNAPSHOT'
+description = 'Demo project for Spring Boot'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(17)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+    // 1. 스프링 부트 웹 (REST API 및 컨트롤러 구동 필수)
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // 2. 롬복 (어노테이션 기반 Getter/Setter 자동 생성)
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    
+    // 3. 테스트 환경에서도 롬복 사용 설정
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // 4. 스프링 부트 기본 테스트 도구
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // 5. MyBatis 스프링 부트 스타터
+    implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.3'
+    
+    // MariaDB Client
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
+// 자바 실행 시 외부 XML 설계도(DTD) 접근을 허용하는 설정
+tasks.withType(JavaExec) {
+    systemProperty "javax.xml.accessExternalDTD", "all"
+}
+
+// Spring Boot 실행(bootRun) 시에도 동일하게 적용
+bootRun {
+    systemProperties = System.properties
+    systemProperty "javax.xml.accessExternalDTD", "all"
+}

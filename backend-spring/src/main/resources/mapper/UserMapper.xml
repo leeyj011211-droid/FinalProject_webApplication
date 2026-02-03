@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "mybatis-3-mapper.dtd">
+
+<mapper namespace="com.project1.backend_spring.mapper.UserMapper">
+
+    <insert id="insertUser" parameterType="com.project1.backend_spring.dto.UserDTO" useGeneratedKeys="true" keyProperty="historyId">
+        INSERT INTO user (user_name, email, login_social_id, safety_portal_id, safety_portal_pw) 
+        VALUES (#{userName}, #{email}, #{loginSocialId}, #{safetyPortalId}, #{safetyPortalPw})
+    </insert>
+    <select id="findBySocialId" resultType="com.project1.backend_spring.dto.UserDTO">
+        SELECT * FROM user WHERE login_social_id = #{loginSocialId}
+    </select>
+    <select id="findAllUsers" resultType="com.project1.backend_spring.dto.UserDTO">
+        SELECT * FROM user
+    </select>
+    <select id="findUserById" resultType="com.project1.backend_spring.dto.UserDTO">
+        SELECT * FROM user WHERE history_id = #{historyId}
+    </select>
+    <insert id="insertDevice" parameterType="com.project1.backend_spring.dto.DeviceDTO">
+        INSERT INTO Device (serial_no, history_id) VALUES (#{serialNo}, #{historyId})
+    </insert>
+    <select id="findDevicesByUserId" resultType="com.project1.backend_spring.dto.DeviceDTO">
+        SELECT * FROM Device WHERE history_id = #{historyId}
+    </select>
+    <select id="findUserBySerialNo" resultType="Integer">
+        SELECT history_id FROM Device WHERE serial_no = #{serialNo} LIMIT 1
+    </select>
+
+    <insert id="insertIncidentLog" parameterType="com.project1.backend_spring.dto.IncidentLogDTO">
+        INSERT INTO incident_log (
+            serial_no, video_url, incident_date, incident_time, 
+            violation_type, plate_no, AI_draft, location
+        ) VALUES (
+            #{serialNo}, #{videoUrl}, #{incidentDate}, #{incidentTime}, 
+            #{violationType}, #{plateNo}, #{aiDraft}, #{location}
+        )
+    </insert>
+    <select id="getLastInsertId" resultType="int"> SELECT LAST_INSERT_ID() </select>
+
+    <insert id="insertReport">
+        INSERT INTO report (history_id, incident_log, description, is_submitted) 
+        VALUES (#{userId}, #{logId}, #{aiDraft}, 0)
+    </insert>
+
+    <select id="findReportsByUserId" resultType="com.project1.backend_spring.dto.ReportDTO">
+        SELECT 
+            r.report_id AS reportId,
+            r.history_id AS historyId,
+            r.incident_log AS incidentLog,
+            r.is_submitted AS isSubmitted,
+            r.description AS `desc`,
+            
+            l.serial_no AS serialNo,
+            CONCAT(l.incident_date, ' ', l.incident_time) AS date,
+            l.incident_date AS incidentDate,
+            l.incident_time AS incidentTime,
+            l.video_url AS videoUrl,
+            
+            l.violation_type AS result,        l.violation_type AS violationType, l.plate_no AS plateNo,
+            l.AI_draft AS aiDraft,
+            l.location AS location
+            
+        FROM report r
+        JOIN incident_log l ON r.incident_log = l.incident_log
+        WHERE r.history_id = #{userId}
+        ORDER BY r.report_id DESC
+    </select>
+
+    <select id="findVideoUrlByReportId" resultType="String">
+        SELECT l.video_url 
+        FROM report r 
+        JOIN incident_log l ON r.incident_log = l.incident_log
+        WHERE r.report_id = #{reportId}
+    </select>
+
+    <delete id="deleteReport">
+        DELETE r, l
+        FROM report r
+        JOIN incident_log l ON r.incident_log = l.incident_log
+        WHERE r.report_id = #{reportId}
+    </delete>
+
+    <update id="submitReport" parameterType="com.project1.backend_spring.dto.ReportDTO">
+        UPDATE report SET is_submitted = 1, reporter_phone = #{phoneNumber}, description = #{description}, is_agreed = #{isAgreed} WHERE report_id = #{reportId}
+    </update>
+
+    <delete id="deleteReportByUserId" parameterType="int"> DELETE FROM report WHERE history_id = #{historyId} </delete>
+    <delete id="deleteIncidentLogByUserId" parameterType="int"> DELETE FROM incident_log WHERE serial_no IN (SELECT serial_no FROM Device WHERE history_id = #{historyId}) </delete>
+    <delete id="deleteDeviceByUserId" parameterType="int"> DELETE FROM Device WHERE history_id = #{historyId} </delete>
+    <delete id="deleteUser" parameterType="int"> DELETE FROM user WHERE history_id = #{historyId} </delete>
+
+</mapper>
