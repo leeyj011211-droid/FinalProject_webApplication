@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
+
 const CustomerService = () => {
   // 초기 메시지
   const [messages, setMessages] = useState([

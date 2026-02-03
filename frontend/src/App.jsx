@@ -24,10 +24,6 @@ function AppContent() {
 
   return (
     <div className="mobile-frame">
-      <div className="notch">
-          <span>9:41</span>
-          <span style={{textAlign: 'right'}}>100%</span>
-      </div>
 
       <div className="app-content">
         <Routes>

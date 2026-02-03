@@ -5,7 +5,7 @@ const About = () => {
     <div className="screen active">
       <div className="header">
         <h1>ℹ️ 서비스 정보</h1>
-        <p>Road Guardian</p>
+        <p></p>
       </div>
 
       <div style={{ padding: '20px' }}>
