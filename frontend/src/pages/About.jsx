@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext'; // ★ [추가] AuthContext 임포트
 
 const About = () => {
+  const { user } = useAuth(); // ★ [추가] 로그인한 유저 정보 가져오기
+
   // 1. 상태 관리
   const [reports, setReports] = useState([]);           
   const [selectedReport, setSelectedReport] = useState(null); 
@@ -13,8 +16,14 @@ const About = () => {
   // 2. DB 데이터 조회
   useEffect(() => {
     const fetchReports = async () => {
+      // ★ [수정] 유저 정보가 없으면 실행하지 않음 (로그인 로딩 대기)
+      if (!user) return;
+
       try {
-        const userId = 2; 
+        // ★ [수정] 하드코딩(2) 제거 -> 실제 로그인한 유저 ID 사용
+        // (DTO 구조에 따라 historyId, history_id, id 중 하나일 수 있어 안전하게 처리)
+        const userId = user.history_id || user.historyId || user.id;
+        
         const response = await axios.get(`http://localhost:8080/api/my-reports?userId=${userId}`);
         setReports(response.data);
       } catch (error) {
@@ -24,7 +33,7 @@ const About = () => {
       }
     };
     fetchReports();
-  }, []);
+  }, [user]); // ★ [수정] user가 로드되면 다시 실행되도록 의존성 추가
 
   // 3. 핸들러 함수들
   const handleBoxClick = (report) => setSelectedReport(report);
@@ -37,7 +46,6 @@ const About = () => {
 
     try {
       // 2. 서버에 삭제 요청 전송
-      // (주의: 백엔드에서 이 요청을 받으면 is_deleted=1 만 처리하고 S3는 건드리지 말아야 함)
       await axios.delete(`http://localhost:8080/api/reports/${reportId}`);
       
       alert("삭제되었습니다.");
@@ -291,7 +299,7 @@ const DetailView = ({ report, onBack, onDelete, onTempSave, onAutoReport }) => {
   return (
     <div className="screen active" style={{ backgroundColor: '#f8f9fa', paddingBottom: '80px', minHeight: '100vh', position: 'relative' }}>
       
-      {/* ★ [수정됨] 헤더: z-index를 9999로 높여서 무조건 클릭되게 함 */}
+      {/* ★ 헤더: z-index를 9999로 높여서 무조건 클릭되게 함 */}
       <div className="header" style={{ 
           padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
           background: 'white', borderBottom: '1px solid #eee', 
@@ -302,7 +310,7 @@ const DetailView = ({ report, onBack, onDelete, onTempSave, onAutoReport }) => {
         
         {/* 버튼 그룹 */}
         <div style={{ display: 'flex', gap: '8px' }}>
-            {/* ★ [추가됨] 삭제 버튼 */}
+            {/* ★ 삭제 버튼 */}
             <button 
               type="button" 
               onClick={() => onDelete(report.reportId)} 

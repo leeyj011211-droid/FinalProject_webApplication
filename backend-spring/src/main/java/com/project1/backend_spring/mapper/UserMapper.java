@@ -66,4 +66,10 @@ public interface UserMapper {
     void deleteDeviceByUserId(int historyId);
     void deleteUser(int historyId);
     void deleteDevice(@Param("historyId") int historyId, @Param("serialNo") String serialNo);
+
+    void updatePortalInfo(@Param("historyId") int historyId, 
+                          @Param("portalId") String portalId, 
+                          @Param("portalPw") String portalPw);
+
+    int checkPortalIdDuplicate(@Param("portalId") String portalId, @Param("historyId") int historyId);
 }

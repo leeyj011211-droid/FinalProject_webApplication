@@ -30,6 +30,28 @@ const About = () => {
   const handleBoxClick = (report) => setSelectedReport(report);
   const handleBack = () => setSelectedReport(null);
 
+  // ★ [핵심] 삭제 버튼 핸들러 (화면에서 제거 요청)
+  const handleDelete = async (reportId) => {
+    // 1. 사용자 확인
+    if (!window.confirm("정말 삭제하시겠습니까?\n(목록에서만 사라지며 데이터는 보관됩니다)")) return;
+
+    try {
+      // 2. 서버에 삭제 요청 전송
+      // (주의: 백엔드에서 이 요청을 받으면 is_deleted=1 만 처리하고 S3는 건드리지 말아야 함)
+      await axios.delete(`http://localhost:8080/api/reports/${reportId}`);
+      
+      alert("삭제되었습니다.");
+      
+      // 3. 화면 갱신 (새로고침 없이 목록에서 즉시 안 보이게 처리 - Soft Delete 효과)
+      setReports(prev => prev.filter(r => r.reportId !== reportId));
+      setSelectedReport(null); // 상세창 닫기
+
+    } catch (error) {
+      console.error("삭제 요청 실패:", error);
+      alert("삭제 처리 중 오류가 발생했습니다.");
+    }
+  };
+
   const handleTempSave = async (formData) => {
     if (!selectedReport) return;
     try {
@@ -55,7 +77,7 @@ const About = () => {
   };
 
   // =================================================================
-  // [필터링 로직]
+  // [필터링 로직] - 원본 유지
   // =================================================================
   const counts = {
     ALL: reports.length,
@@ -78,6 +100,7 @@ const About = () => {
       <DetailView 
         report={selectedReport} 
         onBack={handleBack} 
+        onDelete={handleDelete} // ★ 삭제 함수 전달
         onTempSave={handleTempSave} 
         onAutoReport={handleAutoReport} 
       />
@@ -85,7 +108,7 @@ const About = () => {
   }
 
   // =================================================================
-  // [목록 뷰]
+  // [목록 뷰] - 원본 유지
   // =================================================================
   return (
     <div className="screen active" style={{ backgroundColor: '#f8f9fa', minHeight: '100vh', padding: '20px' }}>
@@ -231,9 +254,9 @@ const FilterButton = ({ label, count, active, onClick, baseColor }) => {
 };
 
 // =================================================================
-// [상세 정보 뷰]
+// [상세 정보 뷰] - ★ 버튼 클릭 문제 해결 (z-index) 및 삭제 버튼 추가
 // =================================================================
-const DetailView = ({ report, onBack, onTempSave, onAutoReport }) => {
+const DetailView = ({ report, onBack, onDelete, onTempSave, onAutoReport }) => {
   const [formData, setFormData] = useState({
     reportType: report.violationType || '기타',
     carNumber: report.plateNo || '',
@@ -266,24 +289,48 @@ const DetailView = ({ report, onBack, onTempSave, onAutoReport }) => {
     : `http://localhost:8080/${report.videoUrl}`;
 
   return (
-    <div className="screen active" style={{ backgroundColor: '#f8f9fa', paddingBottom: '80px', minHeight: '100vh' }}>
+    <div className="screen active" style={{ backgroundColor: '#f8f9fa', paddingBottom: '80px', minHeight: '100vh', position: 'relative' }}>
       
-      {/* 헤더 */}
+      {/* ★ [수정됨] 헤더: z-index를 9999로 높여서 무조건 클릭되게 함 */}
       <div className="header" style={{ 
           padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-          background: 'white', borderBottom: '1px solid #eee', position: 'sticky', top: 0, zIndex: 100 
+          background: 'white', borderBottom: '1px solid #eee', 
+          position: 'sticky', top: 0, zIndex: 9999, // ★ 최상위 배치
+          boxShadow: '0 2px 5px rgba(0,0,0,0.05)' 
       }}>
         <h1 style={{ fontSize: '20px', margin: '0', fontWeight: 'bold' }}>상세 정보 수정</h1>
-        <button 
-          type="button" 
-          onClick={(e) => { e.stopPropagation(); onBack(); }} 
-          style={{ 
-            border: 'none', background: '#f1f3f5', padding: '8px 16px', borderRadius: '8px', 
-            fontSize: '14px', cursor: 'pointer', fontWeight: 'bold', color: '#333', pointerEvents: 'auto' 
-          }}
-        >
-          뒤로가기 ↩
-        </button>
+        
+        {/* 버튼 그룹 */}
+        <div style={{ display: 'flex', gap: '8px' }}>
+            {/* ★ [추가됨] 삭제 버튼 */}
+            <button 
+              type="button" 
+              onClick={() => onDelete(report.reportId)} 
+              style={{ 
+                border: '1px solid #ffcccc', background: '#fff1f0', padding: '8px 12px', borderRadius: '8px', 
+                fontSize: '13px', cursor: 'pointer', fontWeight: 'bold', color: '#ff4d4f',
+                position: 'relative', zIndex: 10000 // ★ 버튼도 위로 올림
+              }}
+              onMouseOver={(e) => e.target.style.background = '#ffe5e5'}
+              onMouseOut={(e) => e.target.style.background = '#fff1f0'}
+            >
+              🗑 삭제
+            </button>
+
+            <button 
+              type="button" 
+              onClick={(e) => { e.stopPropagation(); onBack(); }} 
+              style={{ 
+                border: 'none', background: '#f1f3f5', padding: '8px 16px', borderRadius: '8px', 
+                fontSize: '14px', cursor: 'pointer', fontWeight: 'bold', color: '#333', 
+                pointerEvents: 'auto', position: 'relative', zIndex: 10000 // ★ 버튼도 위로 올림
+              }}
+              onMouseOver={(e) => e.target.style.background = '#e9ecef'}
+              onMouseOut={(e) => e.target.style.background = '#f1f3f5'}
+            >
+              뒤로가기 ↩
+            </button>
+        </div>
       </div>
 
       <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '24px' }}>

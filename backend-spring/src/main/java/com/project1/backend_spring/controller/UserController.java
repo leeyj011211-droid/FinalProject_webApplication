@@ -62,4 +62,33 @@ public class UserController {
             return ResponseEntity.status(500).body("Error");
         }
     }
+
+    @PutMapping("/user/{id}/portal-info")
+    public ResponseEntity<String> savePortalInfo(@PathVariable int id, @RequestBody UserDTO userDto) {
+        System.out.println("🔒 안전신문고 정보 저장 요청 (User ID: " + id + ")");
+        try {
+            String newId = userDto.getSafetyPortalId();
+            
+            // 중복 검사 로직
+            if (newId != null && !newId.isEmpty()) {
+                int duplicateCount = userMapper.checkPortalIdDuplicate(newId, id);
+                if (duplicateCount > 0) {
+                    // 이미 누군가 쓰고 있다면 409 Conflict 에러 반환
+                    return ResponseEntity.status(409).body("DuplicateID");
+                }
+            }
+
+            // 중복 아니면 저장 진행
+            userMapper.updatePortalInfo(
+                id, 
+                userDto.getSafetyPortalId(), 
+                userDto.getSafetyPortalPw()
+            );
+            return ResponseEntity.ok("Saved");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Error");
+        }
+    }
+    
 }

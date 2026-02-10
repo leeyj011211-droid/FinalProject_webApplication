@@ -12,7 +12,16 @@ const Support = () => {
   const [deviceList, setDeviceList] = useState([]);
   const [activeDevice, setActiveDevice] = useState(null);
 
-  // 내 기기 목록 불러오기
+  const [portalId, setPortalId] = useState("");
+  const [portalPw, setPortalPw] = useState("");
+
+  useEffect(() => {
+    if (user) {
+        setPortalId(user.safetyPortalId || user.safety_portal_id || "");
+        setPortalPw(user.safetyPortalPw || user.safety_portal_pw || "");
+    }
+  }, [user]);
+
   const fetchMyDevices = async () => {
     if (!user) return;
     const targetId = user.history_id || user.id;
@@ -25,7 +34,6 @@ const Support = () => {
             if (!data || (Array.isArray(data) && data.length === 0)) {
                 setDeviceList([]);
                 setActiveDevice(null);
-                // 기기 목록이 없으면 저장된 연결 정보도 삭제
                 localStorage.removeItem('connectedSerial');
                 return;
             }
@@ -33,22 +41,16 @@ const Support = () => {
             const devices = Array.isArray(data) ? data : [data];
             setDeviceList(devices);
 
-            // ★ [수정됨] 자동 연결 로직 개선
-            // 1. 로컬 스토리지에서 '마지막으로 연결했던 기기 시리얼'을 확인
             const savedSerial = localStorage.getItem('connectedSerial');
-
             if (savedSerial) {
-                // 저장된 시리얼과 일치하는 기기가 목록에 있는지 확인
                 const targetDevice = devices.find(d => (d.serialNo || d.serial_no) === savedSerial);
                 if (targetDevice) {
                     setActiveDevice(targetDevice);
                 } else {
-                    // 저장된 건 있는데 목록에 없으면(삭제됨 등) -> 연결 해제
                     setActiveDevice(null);
                     localStorage.removeItem('connectedSerial');
                 }
             } else {
-                // 저장된 연결 정보가 없으면 -> 연결 안 함 (null 유지)
                 setActiveDevice(null);
             }
         }
@@ -61,18 +63,16 @@ const Support = () => {
     fetchMyDevices();
   }, [user]);
 
-  // 로그아웃
   const handleLogout = async () => {
     try { await fetch('http://localhost:8000/auth/logout', { method: 'POST' }); } 
     catch (error) { console.error(error); } 
     finally { 
         logout(); 
-        localStorage.removeItem('connectedSerial'); // 로그아웃 시 연결 정보 초기화
+        localStorage.removeItem('connectedSerial'); 
         navigate('/login'); 
     }
   };
 
-  // 회원 탈퇴
   const handleDeleteAccount = async () => {
     if (!window.confirm("정말로 탈퇴하시겠습니까?\n복구할 수 없습니다.")) return;
     const targetId = user?.history_id || user?.id;
@@ -87,7 +87,6 @@ const Support = () => {
     } catch (e) { console.error(e); }
   };
 
-  // 기기 등록
   const handleRegisterDevice = async () => {
     if (!serialInput.trim()) return alert("시리얼 번호를 입력해주세요.");
     const targetId = user?.history_id || user?.id;
@@ -110,24 +109,56 @@ const Support = () => {
     } catch (e) { console.error(e); alert("서버 연결 실패"); }
   };
 
-  // ★ [수정됨] 연동 해제 핸들러
+  const handleSavePortalInfo = async () => {
+    if (!portalId.trim() || !portalPw.trim()) {
+        return alert("안전신문고 ID와 비밀번호를 모두 입력해주세요.");
+    }
+
+    const pwRegex = /^(?=.*[a-zA-Z])(?=.*[0-9])(?=.*[!@#$%^&*])[a-zA-Z0-9!@#$%^&*]{9,12}$/;
+    if (!pwRegex.test(portalPw)) {
+        return alert("비밀번호는 9자 이상 12자 이하의 영문, 숫자, 특수문자(!@#$%^&*)를 혼용하여 설정해야 합니다.");
+    }
+    
+    const targetId = user?.history_id || user?.id;
+    
+    try {
+        const res = await fetch(`http://localhost:8080/api/user/${targetId}/portal-info`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                safetyPortalId: portalId, 
+                safetyPortalPw: portalPw 
+            })
+        });
+
+        if (res.ok) {
+            alert("안전신문고 정보가 저장되었습니다.");
+        } else if (res.status === 409) {
+            alert("이미 다른 사용자가 등록한 안전신문고 아이디입니다.");
+        } else {
+            alert("저장 실패: 서버 오류가 발생했습니다.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("서버 연결 실패");
+    }
+  };
+
   const handleDisconnect = (e) => {
     e.stopPropagation();
     if (window.confirm("현재 기기와의 연동을 해제하시겠습니까?\n(기기 목록에는 유지됩니다)")) {
         setActiveDevice(null);
-        localStorage.removeItem('connectedSerial'); // 저장된 연결 정보 삭제
+        localStorage.removeItem('connectedSerial');
     }
   };
 
-  // ★ [수정됨] 기기 연결 핸들러
   const handleConnect = (device) => {
     setActiveDevice(device);
     const sNo = device.serialNo || device.serial_no;
-    localStorage.setItem('connectedSerial', sNo); // 연결 정보 저장
+    localStorage.setItem('connectedSerial', sNo);
     alert(`기기(${sNo})와 연결되었습니다.`);
   };
 
-  // 시리얼 복사
   const handleCopySerial = (serial) => {
     navigator.clipboard.writeText(serial);
     alert(`복사됨: ${serial}`);
@@ -152,7 +183,7 @@ const Support = () => {
                     <div style={{ fontSize: '50px' }}>👤</div>
                     <div>
                         <div style={{ fontSize: '18px', fontWeight: '700', color: '#92400E' }}>
-                            {user.nickname || "사용자"}님
+                            {user.nickname || user.user_name || "사용자"}님
                         </div>
                         <div style={{ fontSize: '13px', color: '#B45309', fontWeight: '500' }}>
                             환영합니다! 👋
@@ -170,7 +201,7 @@ const Support = () => {
             background: 'white', 
             borderRadius: '16px', 
             padding: '20px', 
-            border: activeDevice ? '2px solid #3B82F6' : '1px dashed #ccc',
+            border: activeDevice ? '2px solid #3B82F6' : '1px solid #e5e7eb',
             boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between'
         }}>
@@ -201,9 +232,15 @@ const Support = () => {
             )}
         </div>
 
-        {/* 기기 목록 */}
-        <div>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: '#374151', marginBottom: '10px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        {/* 내 기기 목록 박스 */}
+        <div style={{ 
+            background: 'white', 
+            borderRadius: '16px', 
+            padding: '20px', 
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+        }}>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#374151', marginBottom: '15px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <span>📋 내 기기 목록</span>
                 <button onClick={() => setShowModal(true)} style={{ background:'none', border:'none', color:'#3B82F6', fontSize:'13px', fontWeight:'600', cursor:'pointer' }}>+ 새 기기 등록</button>
             </div>
@@ -220,7 +257,10 @@ const Support = () => {
 
                         return (
                             <div key={idx} style={{ 
-                                background: 'white', padding: '16px', borderRadius: '12px', border: '1px solid #e5e7eb',
+                                background: '#F9FAFB',
+                                padding: '16px', 
+                                borderRadius: '12px', 
+                                border: '1px solid #e5e7eb',
                                 display: 'flex', alignItems: 'center', justifyContent: 'space-between'
                             }}>
                                 <div style={{ display:'flex', alignItems:'center', gap:'10px' }}>
@@ -254,14 +294,54 @@ const Support = () => {
             )}
         </div>
 
-        {/* 하단 메뉴 */}
-        <div style={{ borderTop: '1px solid #eee', paddingTop: '20px' }}>
-            <div className="menu-card" onClick={() => alert("준비 중입니다.")} style={{ margin:0 }}>
-                <div className="menu-icon green">❓</div>
-                <div className="menu-content"><div className="menu-title">자주 묻는 질문</div></div>
-                <div className="menu-arrow">›</div>
+        {/* 안전신문고 섹션 */}
+        <div style={{ 
+            background: 'white', 
+            borderRadius: '16px', 
+            padding: '20px', 
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+        }}>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: '#374151', marginBottom: '15px', display:'flex', alignItems:'center', gap:'8px' }}>
+                <span>🔒 안전신문고 연동 설정</span>
             </div>
             
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <input 
+                    type="text" 
+                    placeholder="안전신문고 ID" 
+                    value={portalId}
+                    onChange={(e) => setPortalId(e.target.value)}
+                    style={{ padding: '12px', borderRadius: '8px', border: '1px solid #eee', fontSize: '14px', outline: 'none', background: '#f9fafb' }}
+                />
+                <input 
+                    type="password" 
+                    placeholder="안전신문고 비밀번호" 
+                    value={portalPw}
+                    onChange={(e) => setPortalPw(e.target.value)}
+                    style={{ padding: '12px', borderRadius: '8px', border: '1px solid #eee', fontSize: '14px', outline: 'none', background: '#f9fafb' }}
+                />
+                <button 
+                    onClick={handleSavePortalInfo}
+                    style={{ 
+                        padding: '12px', 
+                        borderRadius: '8px', 
+                        border: 'none', 
+                        background: '#374151', 
+                        color: 'white', 
+                        fontSize: '14px',
+                        fontWeight: 'bold', 
+                        cursor: 'pointer',
+                        marginTop: '5px'
+                    }}
+                >
+                    계정 정보 저장
+                </button>
+            </div>
+        </div>
+
+        {/* 하단 메뉴 (자주 묻는 질문 삭제됨) */}
+        <div style={{ borderTop: '1px solid #eee', paddingTop: '20px' }}>
             <div style={{ marginTop: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <button className="btn" onClick={handleLogout} style={{ background: 'var(--bg-secondary)', color: 'var(--danger-red)', border: '1px solid var(--border-light)', width: '100%', margin: 0, justifyContent: 'center' }}>로그아웃</button>
                 <div style={{ textAlign: 'center', marginTop: '8px' }}><span onClick={handleDeleteAccount} style={{ fontSize: '12px', color: '#9CA3AF', textDecoration: 'underline', cursor: 'pointer' }}>회원 탈퇴하기</span></div>

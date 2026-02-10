@@ -107,4 +107,21 @@
     </delete>
     <delete id="deleteDeviceByUserId"> DELETE FROM Device WHERE history_id = #{historyId} </delete>
     <delete id="deleteUser"> DELETE FROM user WHERE history_id = #{historyId} </delete>
+
+    <!-- 안전신문고 id 중복 검사 -->
+    <select id="checkPortalIdDuplicate" resultType="int">
+        SELECT COUNT(*) 
+        FROM user 
+        WHERE safety_portal_id = #{portalId}
+          AND history_id != #{historyId}  </select>
+
+    <!-- 유저 테이블 안전신문고 계정 정보 업데이트 -->
+    <update id="updatePortalInfo">
+        UPDATE user
+        SET 
+            safety_portal_id = #{portalId},
+            safety_portal_pw = #{portalPw}
+        WHERE history_id = #{historyId}
+    </update>
+    
 </mapper>
